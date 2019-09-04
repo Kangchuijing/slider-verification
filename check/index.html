@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+    <style>
+      .active-box {
+        width: 400px;
+        height: 500px;
+        margin: 10px auto;
+        position: relative;
+        user-select: none;
+      }
+      .active-box .img-container {
+        width: 100%;
+        height: 300px;
+        border: 1px solid #ddd;
+        position: relative;
+      }
+      .active-box .small-img {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+      }
+      .active-box .slider-line {
+        width: 100%;
+        height: 50px;
+        margin-top: 20px;
+        border: 1px solid #ddd;
+        position: relative;
+      }
+      .active-box .slider-line .slider-box {
+          width: 50px;
+          height: 100%;
+          display: inline-block;
+          background: #ddd;
+          color: blueviolet;
+          text-align: center;
+          line-height: 50px;
+          cursor: pointer;
+          position: absolute;
+          top: 0;
+          left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="active-box">
+        <!-- 图片容器 -->
+      <div class="img-container">
+          <!-- 大图 -->
+        <img width="400px" height="300px" src="" class="big-img" />
+        <!-- 小图 -->
+        <img width="50px" height="50px" src="" class="small-img" />
+      </div>
+      <!-- 滑块部分 -->
+      <div class="slider-line">
+          <span class="slider-box">&rarr;</span>
+      </div>
+    </div>
+    <script>
+        let container = document.querySelector('.active-box');
+        let bigImg = document.querySelector('.big-img'), smallImg = document.querySelector('.small-img');
+        let sliderLine = document.querySelector('.slider-line'), sliderBox = document.querySelector('.slider-box');
+        let precision = [0, 1]; // 允许误差的精度
+        function random(min, max){
+            return Math.floor(Math.random()*(max-min+1)+min)
+        }
+        class ActiveCheck{
+            /**
+             *  @params {Object} container 包裹容器
+             *  @params {String} imgSrc 图片路径
+             *  @params {Object} bigImg 大图元素
+             *  @params {Object} smallImg 小图元素
+             *  @params {Object} sliderLine 滑块包裹容器
+             *  @params {Object} sliderBox 滑块
+             *  @params {Number} x 缺口的x轴
+             *  @params {Number} y 缺口的y轴
+             *  @params {Array} percision 允许的误差
+             */
+            constructor(container,bigImg, smallImg, sliderLine, sliderBox,  precision){
+                this.container = container;     // 最外层容器
+                this.containerLeft = 0;         // 容器距离文档左侧的距离
+                this.containerTop = 0;          // 容器距离文档顶部的距离
+                this.containerWidth = 0;        // 容器的宽度
+                this.bigImgsrc = ''      // 大图资源的路径
+                this.smallImgSrc = ''  // 小图资源路径
+                this.bigImg = bigImg;           // 大图元素
+                this.smallImg = smallImg;       // 小图元素
+                this.sliderLine = sliderLine;   // 滑块所在的容器元素
+                this.sliderBox = sliderBox;     // 滑块
+                this.sliderBoxWidth = 0;        // 滑块的宽度
+                this.mouseX = 0;                // 鼠标在滑块中的x轴
+                this.mouseY = 0;                // 鼠标在滑块中的y轴
+                this.x = 0;                     // 缺口的x轴
+                this.y = 0;                     // 缺口的y轴
+                this.precision = precision      // 允许的误差
+                this.init();
+            }
+            init(){
+                this.getData();
+                this.initImg();
+                this.getVal();
+                this.regesitEvent();
+            }
+            // 获取数据
+            getData(){
+                this.bigImgsrc = './big.png';
+                this.smallImgSrc = './small.png';
+                this.x = 215;
+                this.y = 53;
+            }
+            // 初始化图片
+            initImg(){
+                this.bigImg.src = this.bigImgsrc;
+                this.smallImg.src = this.smallImgSrc;
+                this.initSmallImg();
+            }
+            // 初始化小图
+            initSmallImg(){
+                this.smallImg.style.top = this.y + 'px';
+            }
+            // 获取容器的数据
+            getVal(){
+                this.containerLeft = this.container.offsetLeft,this.containerTop = this.container.offsetTop, this.containerWidth = this.container.clientWidth;
+                this.sliderBoxWidth = this.sliderBox.clientWidth;
+            }
+            regesitEvent(){
+                this.bind(this.sliderBox, 'mousedown', this.sliderEvent)
+            }
+            // 滑块滑动的事件
+            sliderEvent = (e) => {
+                let _this = this;
+                this.mouseX = e.offsetX, this.mouseY = e.offsetY;
+                this.sliderLine.onmousemove = (e) => {
+                    let x = e.pageX - this.containerLeft - this.mouseX;
+                    x = x < 0 ? 0 : (x > this.containerWidth - this.sliderBoxWidth  ? this.containerWidth - this.sliderBoxWidth : x);
+                    this.sliderBox.style.left = x + 'px';   // 移动滑块的位置
+                    this.smallImg.style.left = x + 'px';    // 移动小的缺口canvas的位置
+                    this.sliderBox.onmouseup = (e) => {
+                        // 鼠标抬起的时候获取小canvas的位置信息并进行校验
+                        this.sliderLine.onmousemove = null;
+                        let smallImgData = window.getComputedStyle(this.smallImg, null);
+                        let x = parseFloat(smallImgData.left), y = parseFloat(smallImgData.top);
+                        this.check({x, y});
+                    }
+                }
+            }
+            bind = (el, type, fn, ...rest) => {
+                el.addEventListener(type, fn);
+            }
+            // 重置数据
+            restData = () => {
+                this.mouseX = 0;
+                this.mouseY = 0;
+                this.sliderBox.style.left = 0 + 'px';
+                this.smallImg.style.left = 0 + 'px';
+                this.init();
+            }
+            // 校验位置
+            check = (params) => {
+                
+                // 最终的误差值
+                let deviation = [
+                     Math.abs(params.x - this.x),
+                    Math.abs(params.y - this.y) 
+                ]
+                let max = Math.max.apply(null,deviation);
+                let precisionMin = this.precision[0], precisionMax = this.precision[1];
+                // 误差的最大值超出允许的边界值
+                if (max < precisionMin || max > precisionMax) {
+                    alert('校验失败，请重试');
+                    this.restData();
+                } else {
+                    // 检验通过
+                    alert('校验通过')
+                }
+            }
+        }
+        new ActiveCheck(container, bigImg, smallImg, sliderLine, sliderBox, precision);
+    </script>
+  </body>
+</html>
